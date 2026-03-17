@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, 'feature/**', 'refactor/**', 'bugfix/**', 'fix/**']
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/instructions/**'
+  pull_request:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
+      - '.github/instructions/**'
+
+jobs:
+  check:
+    uses: wspulse/.github/.github/workflows/go-check.yml@main
