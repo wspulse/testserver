@@ -1,0 +1,35 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - misspell
+    - revive
+  settings:
+    revive:
+      rules:
+        - name: exported
+        - name: var-naming
+        - name: blank-imports
+        - name: context-as-argument
+        - name: error-return
+        - name: error-strings
+        - name: increment-decrement
+        - name: range
+        - name: receiver-naming
+        - name: indent-error-flow
+
+formatters:
+  enable:
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/wspulse
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

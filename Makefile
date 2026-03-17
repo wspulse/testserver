@@ -1,0 +1,44 @@
+.PHONY: help test test-race lint fmt check tidy deps clean build
+
+# Default target
+help: ## Show available commands
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
+
+build: ## Build the testserver binary
+	@go build -o testserver .
+
+test: ## Run tests with race detector
+	@go test -race -count=1 -v ./...
+
+test-race: ## Run tests with race detector (3 iterations)
+	@go test -race -count=3 ./...
+
+lint: ## Run go vet and golangci-lint
+	@go vet ./...
+	@golangci-lint run ./...
+
+fmt: ## Format source files
+	@gofmt -w .
+	@go run golang.org/x/tools/cmd/goimports@latest -local github.com/wspulse -w .
+
+check: ## Run fmt-check, lint, tests (pre-commit gate)
+	@echo "── fmt ──"
+	@test -z "$$(gofmt -l .)" || (echo "formatting issues — run 'make fmt'"; exit 1)
+	@test -z "$$(go run golang.org/x/tools/cmd/goimports@latest -local github.com/wspulse -l .)" || (echo "import issues — run 'make fmt'"; exit 1)
+	@echo "── lint ──"
+	@$(MAKE) --no-print-directory lint
+	@echo "── test ──"
+	@$(MAKE) --no-print-directory test-race
+	@echo "── all passed ──"
+
+tidy: ## Tidy module dependencies
+	@GOWORK=off go mod tidy
+
+deps: ## Download all modules and sync go.sum, then tidy
+	@go mod download
+	@GOWORK=off go mod tidy
+
+clean: ## Remove build artifacts and test cache
+	@rm -f testserver
+	@go clean -testcache

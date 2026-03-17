@@ -1,0 +1,20 @@
+# Build artifacts
+testserver
+coverage.out
+coverage.html
+
+# Go workspace (local only)
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local docs
+doc/local/
