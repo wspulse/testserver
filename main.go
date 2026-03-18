@@ -278,7 +278,7 @@ func (ts *testServer) handleIgnorePings(w http.ResponseWriter, r *http.Request) 
 		ts.logger.Error("ignore_pings upgrade failed", zap.Error(err))
 		return
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	// Suppress automatic Pong replies.
 	conn.SetPingHandler(func(string) error { return nil })
