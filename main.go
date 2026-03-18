@@ -2,9 +2,11 @@
 // integration tests. It exposes two local ports:
 //
 //   - WebSocket port — echo server with query-param-controlled behaviour:
-//     ?reject=1  → ConnectFunc returns an error (HTTP 401)
-//     ?room=<id> → assigns connection to room <id> (default: "test")
-//     ?id=<id>   → sets connectionID (default: auto-generated UUID)
+//     ?reject=1       → ConnectFunc returns an error (HTTP 401)
+//     ?room=<id>      → assigns connection to room <id> (default: "test")
+//     ?id=<id>        → sets connectionID (default: auto-generated UUID)
+//     ?ignore_pings=1 → raw echo handler that suppresses Pong replies
+//     (bypasses wspulse/server; used to test pong-timeout)
 //
 //   - Control port — HTTP API for test orchestration:
 //     GET  /health   → 200 OK
@@ -26,6 +28,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
 
 	wspulse "github.com/wspulse/server"
@@ -112,7 +115,7 @@ func (ts *testServer) startWebSocket() (int, error) {
 	srv := ts.server
 	go func() {
 		defer close(ts.wsServing)
-		if err := http.Serve(ln, srv); err != nil {
+		if err := http.Serve(ln, ts.wrapHandler(srv)); err != nil {
 			ts.logger.Debug("ws http.Serve exited", zap.Error(err))
 		}
 	}()
@@ -240,12 +243,55 @@ func (ts *testServer) handleRestart(w http.ResponseWriter, _ *http.Request) {
 	srv := ts.server
 	go func() {
 		defer close(ts.wsServing)
-		if err := http.Serve(ln, srv); err != nil {
+		if err := http.Serve(ln, ts.wrapHandler(srv)); err != nil {
 			ts.logger.Debug("ws http.Serve exited (restart)", zap.Error(err))
 		}
 	}()
 
 	writeJSON(w, http.StatusOK, response{OK: true})
+}
+
+// ── ignore_pings handler ────────────────────────────────────────────────────
+
+// wrapHandler intercepts ?ignore_pings=1 connections before they reach the
+// wspulse server. All other requests are forwarded to srv.
+func (ts *testServer) wrapHandler(srv wspulse.Server) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("ignore_pings") == "1" {
+			ts.handleIgnorePings(w, r)
+			return
+		}
+		srv.ServeHTTP(w, r)
+	})
+}
+
+// handleIgnorePings upgrades to WebSocket and echoes messages without
+// responding to Ping frames. This lets clients test pong-timeout detection.
+func (ts *testServer) handleIgnorePings(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin:     func(*http.Request) bool { return true },
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		ts.logger.Error("ignore_pings upgrade failed", zap.Error(err))
+		return
+	}
+	defer conn.Close()
+
+	// Suppress automatic Pong replies.
+	conn.SetPingHandler(func(string) error { return nil })
+
+	for {
+		mt, message, readErr := conn.ReadMessage()
+		if readErr != nil {
+			break
+		}
+		if writeErr := conn.WriteMessage(mt, message); writeErr != nil {
+			break
+		}
+	}
 }
 
 // ── JSON helpers ────────────────────────────────────────────────────────────
