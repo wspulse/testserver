@@ -137,8 +137,3 @@ make lint     # go vet + golangci-lint
 
 Requires: Go 1.26+, [golangci-lint](https://golangci-lint.run/).
 
----
-
-## License
-
-[MIT](LICENSE)
