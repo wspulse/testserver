@@ -71,12 +71,33 @@ make clean            # remove build artifacts and test cache
 ## Session Protocol
 
 > Files under `doc/local/` are git-ignored and must **never** be committed.
+> This includes plan files (`doc/local/plan/`) and the AI learning log (`doc/local/ai-learning.md`).
 
-- **At the start of every session**: check whether `doc/local/plan/` contains
-  an in-progress plan for the current task, and read `doc/local/ai-learning.md`
-  (if it exists) to recall past mistakes and techniques before writing any code.
-- **Plan mode**: when implementing a new feature or multi-file fix, save a plan
-  to `doc/local/plan/<feature-name>.md` before starting.
-- **AI learning log**: at the end of a session where mistakes were made or
-  reusable techniques were discovered, append a short entry to
-  `doc/local/ai-learning.md`.
+### Start of every session — MANDATORY
+
+**Do these steps before writing any code:**
+
+1. Read `doc/local/ai-learning.md` **in full** to recall past mistakes. If the file is missing or empty, create it with the table header (see format below) before proceeding.
+2. Check `doc/local/plan/` for any in-progress plan and read it fully.
+
+### During feature work
+
+For any new feature or multi-file fix: save a plan to `doc/local/plan/<feature-name>.md` **before starting**. Keep it updated with completed steps throughout the session.
+
+### End of every session — MANDATORY
+
+**Before closing the session, complete this checklist without exception:**
+
+1. Append at least one entry to `doc/local/ai-learning.md` — **even if no mistakes were made**. Record what you confirmed, what technique worked, or what you observed. An empty file is a sign of non-compliance.
+2. Update any in-progress plan in `doc/local/plan/` to reflect completed steps.
+3. Verify `make check` passes.
+
+**Entry format** for `doc/local/ai-learning.md`:
+
+```
+| Date       | Issue or Learning | Root Cause | Prevention Rule |
+| ---------- | ----------------- | ---------- | --------------- |
+| YYYY-MM-DD | <what happened or what you learned> | <why it happened> | <how to avoid it next time> |
+```
+
+**Writing to `ai-learning.md` is not optional. It is the primary cross-session improvement mechanism. An empty file proves the session protocol was ignored.**
