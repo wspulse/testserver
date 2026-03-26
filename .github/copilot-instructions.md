@@ -45,6 +45,7 @@ make clean            # remove build artifacts and test cache
   - **Test-first for bug fixes**: write a failing test before touching production code.
 - **Error format**: wrap errors as `fmt.Errorf("testserver: <context>: %w", err)`.
 - **Dependency policy**: prefer stdlib; justify any new external dependency in the PR description.
+- **File encoding**: all files must be UTF-8 without BOM. Do not use any other encoding.
 
 ## Critical Rules
 
