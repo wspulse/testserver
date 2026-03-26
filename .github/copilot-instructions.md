@@ -72,7 +72,7 @@ make clean            # remove build artifacts and test cache
 ## Session Protocol
 
 > Files under `doc/local/` are git-ignored and must **never** be committed.
-> This includes plan files (`doc/local/plan/`) and the AI learning log (`doc/local/ai-learning.md`).
+> This includes plan files (`doc/local/plan/`), review records, and the AI learning log (`doc/local/ai-learning.md`).
 
 ### Start of every session — MANDATORY
 
@@ -85,13 +85,24 @@ make clean            # remove build artifacts and test cache
 
 For any new feature or multi-file fix: save a plan to `doc/local/plan/<feature-name>.md` **before starting**. Keep it updated with completed steps throughout the session.
 
+### Review records
+
+After conducting any review (code review, plan review, design review, PR review, etc.), record the findings for cross-session context:
+
+- **Where to write**: this repo's `doc/local/`. If working in a multi-module workspace, also write to the workspace root's `doc/local/`.
+- **Single truth**: write the full record in one location; the other location keeps a brief summary with a file path reference to the full record.
+- **Acceptable formats**:
+  1. Update the relevant plan file in `doc/local/plan/` with the review outcome.
+  2. Dedicated review file in `doc/local/` if no relevant plan exists.
+- **What to record**: review type, key findings, decisions made, action items, and resolution status.
+
 ### End of every session — MANDATORY
 
 **Before closing the session, complete this checklist without exception:**
 
 1. Append at least one entry to `doc/local/ai-learning.md` — **even if no mistakes were made**. Record what you confirmed, what technique worked, or what you observed. An empty file is a sign of non-compliance.
 2. Update any in-progress plan in `doc/local/plan/` to reflect completed steps.
-3. Verify `make check` passes.
+3. Verify `make check` passes in every module you edited.
 
 **Entry format** for `doc/local/ai-learning.md`:
 
