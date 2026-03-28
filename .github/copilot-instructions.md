@@ -41,6 +41,7 @@ make clean            # remove build artifacts and test cache
     - `refactor/<name>` — restructure without behaviour change
     - `bugfix/<name>` — bug fix
     - `fix/<name>` — quick fix (e.g. config, docs, CI)
+  - **Pull request description**: must follow the repo's `.github/PULL_REQUEST_TEMPLATE.md`. Fill in every section (Summary, Changes, Checklist). Do not invent custom formats.
 - **Tests**: co-located with source (`_test.go`). Cover happy path and at least one error path. Required for new control endpoints.
   - **Test-first for bug fixes**: write a failing test before touching production code.
 - **Error format**: wrap errors as `fmt.Errorf("testserver: <context>: %w", err)`.
