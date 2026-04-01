@@ -88,6 +88,40 @@ func dialWS(t *testing.T, wsURL string, query string) *websocket.Conn {
 	return conn
 }
 
+// waitForDialFail polls until a WebSocket dial to wsURL fails, indicating
+// the server is no longer accepting connections. It uses a 3-second deadline.
+func waitForDialFail(t *testing.T, wsURL string) {
+	t.Helper()
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, _, err := websocket.DefaultDialer.Dial(wsURL+"?id=probe", nil)
+		if err != nil {
+			return // server is down — success
+		}
+		_ = conn.Close()
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("timed out waiting for server to stop accepting connections")
+}
+
+// waitForDialSuccess polls until a WebSocket dial to wsURL succeeds,
+// indicating the server is ready. It uses a 3-second deadline.
+func waitForDialSuccess(t *testing.T, wsURL string) {
+	t.Helper()
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, _, err := websocket.DefaultDialer.Dial(wsURL+"?id=probe", nil)
+		if err == nil {
+			_ = conn.Close()
+			return // server is up — success
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("timed out waiting for server to accept connections")
+}
+
 // ── tests ───────────────────────────────────────────────────────────────────
 
 func TestHealth(t *testing.T) {
@@ -143,8 +177,7 @@ func TestKick(t *testing.T) {
 		t.Fatalf("read: %v", err)
 	}
 
-	// Wait for server to register the connection in the hub.
-	time.Sleep(100 * time.Millisecond)
+	// The echo round-trip above proves the connection is registered in the hub.
 
 	// Kick the connection.
 	r := controlPost(t, controlURL, "/kick?id=kick-1")
@@ -196,14 +229,8 @@ func TestShutdown(t *testing.T) {
 		t.Fatalf("shutdown: %s", r.Error)
 	}
 
-	// Wait for listener to close.
-	time.Sleep(100 * time.Millisecond)
-
-	// New dials should fail.
-	_, _, err := websocket.DefaultDialer.Dial(wsURL+"?id=sd-2", nil)
-	if err == nil {
-		t.Fatal("expected dial to fail after shutdown")
-	}
+	// Wait for listener to close — poll until dial fails.
+	waitForDialFail(t, wsURL)
 
 	// Control port should still be alive.
 	status := controlGet(t, controlURL, "/health")
@@ -235,13 +262,8 @@ func TestRestart(t *testing.T) {
 		t.Fatalf("shutdown: %s", r.Error)
 	}
 
-	time.Sleep(100 * time.Millisecond)
-
-	// Verify dials fail.
-	_, _, err := websocket.DefaultDialer.Dial(wsURL+"?id=rs-1", nil)
-	if err == nil {
-		t.Fatal("expected dial to fail after shutdown")
-	}
+	// Wait for listener to close — poll until dial fails.
+	waitForDialFail(t, wsURL)
 
 	// Restart.
 	r = controlPost(t, controlURL, "/restart")
@@ -249,7 +271,8 @@ func TestRestart(t *testing.T) {
 		t.Fatalf("restart: %s", r.Error)
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	// Wait for server to be ready — poll until dial succeeds.
+	waitForDialSuccess(t, wsURL)
 
 	// Verify WS is serving again on the same port.
 	conn := dialWS(t, wsURL, "id=rs-2")
@@ -276,7 +299,8 @@ func TestRestart_WhileRunning(t *testing.T) {
 		t.Fatalf("restart: %s", r.Error)
 	}
 
-	time.Sleep(100 * time.Millisecond)
+	// Wait for server to be ready — poll until dial succeeds.
+	waitForDialSuccess(t, wsURL)
 
 	// Verify WS is serving.
 	conn := dialWS(t, wsURL, "id=rr-1")
@@ -330,13 +354,13 @@ func TestShutdownRestart_KickAfterRestart(t *testing.T) {
 
 	// Shutdown and restart.
 	controlPost(t, controlURL, "/shutdown")
-	time.Sleep(100 * time.Millisecond)
+	waitForDialFail(t, wsURL)
 
 	r := controlPost(t, controlURL, "/restart")
 	if !r.OK {
 		t.Fatalf("restart: %s", r.Error)
 	}
-	time.Sleep(100 * time.Millisecond)
+	waitForDialSuccess(t, wsURL)
 
 	// Connect and then kick.
 	conn := dialWS(t, wsURL, "id=srk-1")
@@ -463,8 +487,13 @@ func TestConcurrentEcho(t *testing.T) {
 	}
 
 	for range clients {
-		if err := <-errs; err != nil {
-			t.Error(err)
+		select {
+		case err := <-errs:
+			if err != nil {
+				t.Error(err)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatal("timed out waiting for concurrent echo client to finish")
 		}
 	}
 }
