@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -24,14 +26,10 @@ func testEnv(t *testing.T) (wsURL string, controlURL string) {
 	ts := newTestServer(logger)
 
 	wsPort, err := ts.startWebSocket()
-	if err != nil {
-		t.Fatalf("startWebSocket: %v", err)
-	}
+	require.NoError(t, err, "startWebSocket")
 
 	ctlPort, err := ts.startControl()
-	if err != nil {
-		t.Fatalf("startControl: %v", err)
-	}
+	require.NoError(t, err, "startControl")
 
 	t.Cleanup(ts.close)
 
@@ -45,16 +43,12 @@ func controlPost(t *testing.T, baseURL, path string) response {
 	t.Helper()
 
 	resp, err := http.Post(baseURL+path, "", nil)
-	if err != nil {
-		t.Fatalf("POST %s: %v", path, err)
-	}
+	require.NoError(t, err, "POST %s", path)
 	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	var r response
-	if err := json.Unmarshal(body, &r); err != nil {
-		t.Fatalf("decode response: %v (body: %s)", err, body)
-	}
+	require.NoError(t, json.Unmarshal(body, &r), "decode response (body: %s)", body)
 	return r
 }
 
@@ -63,9 +57,7 @@ func controlGet(t *testing.T, baseURL, path string) int {
 	t.Helper()
 
 	resp, err := http.Get(baseURL + path)
-	if err != nil {
-		t.Fatalf("GET %s: %v", path, err)
-	}
+	require.NoError(t, err, "GET %s", path)
 	_ = resp.Body.Close()
 	return resp.StatusCode
 }
@@ -81,9 +73,7 @@ func dialWS(t *testing.T, wsURL string, query string) *websocket.Conn {
 	}
 
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
-	if err != nil {
-		t.Fatalf("dial %s: %v", url, err)
-	}
+	require.NoError(t, err, "dial %s", url)
 	t.Cleanup(func() { _ = conn.Close() })
 	return conn
 }
@@ -102,7 +92,7 @@ func waitForDialFail(t *testing.T, wsURL string) {
 		_ = conn.Close()
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatal("timed out waiting for server to stop accepting connections")
+	require.Fail(t, "timed out waiting for server to stop accepting connections")
 }
 
 // waitForDialSuccess polls until a WebSocket dial to wsURL succeeds,
@@ -119,7 +109,7 @@ func waitForDialSuccess(t *testing.T, wsURL string) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatal("timed out waiting for server to accept connections")
+	require.Fail(t, "timed out waiting for server to accept connections")
 }
 
 // ── tests ───────────────────────────────────────────────────────────────────
@@ -128,9 +118,7 @@ func TestHealth(t *testing.T) {
 	_, controlURL := testEnv(t)
 
 	status := controlGet(t, controlURL, "/health")
-	if status != http.StatusOK {
-		t.Fatalf("health: want 200, got %d", status)
-	}
+	require.Equal(t, http.StatusOK, status, "health")
 }
 
 func TestEcho(t *testing.T) {
@@ -139,27 +127,19 @@ func TestEcho(t *testing.T) {
 	conn := dialWS(t, wsURL, "id=echo-1")
 
 	frame := map[string]any{"event": "ping", "payload": "pong"}
-	if err := conn.WriteJSON(frame); err != nil {
-		t.Fatalf("write: %v", err)
-	}
+	require.NoError(t, conn.WriteJSON(frame), "write")
 
 	var got map[string]any
-	if err := conn.ReadJSON(&got); err != nil {
-		t.Fatalf("read: %v", err)
-	}
+	require.NoError(t, conn.ReadJSON(&got), "read")
 
-	if got["event"] != "ping" {
-		t.Errorf("event: want %q, got %q", "ping", got["event"])
-	}
+	assert.Equal(t, "ping", got["event"], "event")
 }
 
 func TestReject(t *testing.T) {
 	wsURL, _ := testEnv(t)
 
 	_, _, err := websocket.DefaultDialer.Dial(wsURL+"?reject=1", nil)
-	if err == nil {
-		t.Fatal("expected dial to fail with reject=1")
-	}
+	require.Error(t, err, "expected dial to fail with reject=1")
 }
 
 func TestKick(t *testing.T) {
@@ -169,51 +149,37 @@ func TestKick(t *testing.T) {
 
 	// Verify connection is alive.
 	frame := map[string]any{"event": "hi"}
-	if err := conn.WriteJSON(frame); err != nil {
-		t.Fatalf("write: %v", err)
-	}
+	require.NoError(t, conn.WriteJSON(frame), "write")
 	var got map[string]any
-	if err := conn.ReadJSON(&got); err != nil {
-		t.Fatalf("read: %v", err)
-	}
+	require.NoError(t, conn.ReadJSON(&got), "read")
 
 	// The echo round-trip above proves the connection is registered in the hub.
 
 	// Kick the connection.
 	r := controlPost(t, controlURL, "/kick?id=kick-1")
-	if !r.OK {
-		t.Fatalf("kick: %s", r.Error)
-	}
+	require.True(t, r.OK, "kick: %s", r.Error)
 
 	// The WebSocket read should fail.
 	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 	_, _, err := conn.ReadMessage()
-	if err == nil {
-		t.Fatal("expected read to fail after kick")
-	}
+	require.Error(t, err, "expected read to fail after kick")
 }
 
 func TestKick_MissingID(t *testing.T) {
 	_, controlURL := testEnv(t)
 
 	resp, err := http.Post(controlURL+"/kick", "", nil)
-	if err != nil {
-		t.Fatalf("POST /kick: %v", err)
-	}
+	require.NoError(t, err, "POST /kick")
 	_ = resp.Body.Close()
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("want 400, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
 func TestKick_UnknownID(t *testing.T) {
 	_, controlURL := testEnv(t)
 
 	r := controlPost(t, controlURL, "/kick?id=nonexistent")
-	if r.OK {
-		t.Fatal("expected kick of unknown ID to fail")
-	}
+	require.False(t, r.OK, "expected kick of unknown ID to fail")
 }
 
 func TestShutdown(t *testing.T) {
@@ -225,32 +191,24 @@ func TestShutdown(t *testing.T) {
 
 	// Shutdown.
 	r := controlPost(t, controlURL, "/shutdown")
-	if !r.OK {
-		t.Fatalf("shutdown: %s", r.Error)
-	}
+	require.True(t, r.OK, "shutdown: %s", r.Error)
 
 	// Wait for listener to close — poll until dial fails.
 	waitForDialFail(t, wsURL)
 
 	// Control port should still be alive.
 	status := controlGet(t, controlURL, "/health")
-	if status != http.StatusOK {
-		t.Fatalf("health after shutdown: want 200, got %d", status)
-	}
+	require.Equal(t, http.StatusOK, status, "health after shutdown")
 }
 
 func TestShutdown_Idempotent(t *testing.T) {
 	_, controlURL := testEnv(t)
 
 	r := controlPost(t, controlURL, "/shutdown")
-	if !r.OK {
-		t.Fatalf("first shutdown: %s", r.Error)
-	}
+	require.True(t, r.OK, "first shutdown: %s", r.Error)
 
 	r = controlPost(t, controlURL, "/shutdown")
-	if !r.OK {
-		t.Fatalf("second shutdown: %s", r.Error)
-	}
+	require.True(t, r.OK, "second shutdown: %s", r.Error)
 }
 
 func TestRestart(t *testing.T) {
@@ -258,18 +216,14 @@ func TestRestart(t *testing.T) {
 
 	// Shutdown first.
 	r := controlPost(t, controlURL, "/shutdown")
-	if !r.OK {
-		t.Fatalf("shutdown: %s", r.Error)
-	}
+	require.True(t, r.OK, "shutdown: %s", r.Error)
 
 	// Wait for listener to close — poll until dial fails.
 	waitForDialFail(t, wsURL)
 
 	// Restart.
 	r = controlPost(t, controlURL, "/restart")
-	if !r.OK {
-		t.Fatalf("restart: %s", r.Error)
-	}
+	require.True(t, r.OK, "restart: %s", r.Error)
 
 	// Wait for server to be ready — poll until dial succeeds.
 	waitForDialSuccess(t, wsURL)
@@ -278,16 +232,10 @@ func TestRestart(t *testing.T) {
 	conn := dialWS(t, wsURL, "id=rs-2")
 
 	frame := map[string]any{"event": "after-restart"}
-	if err := conn.WriteJSON(frame); err != nil {
-		t.Fatalf("write after restart: %v", err)
-	}
+	require.NoError(t, conn.WriteJSON(frame), "write after restart")
 	var got map[string]any
-	if err := conn.ReadJSON(&got); err != nil {
-		t.Fatalf("read after restart: %v", err)
-	}
-	if got["event"] != "after-restart" {
-		t.Errorf("event: want %q, got %q", "after-restart", got["event"])
-	}
+	require.NoError(t, conn.ReadJSON(&got), "read after restart")
+	assert.Equal(t, "after-restart", got["event"], "event")
 }
 
 func TestRestart_WhileRunning(t *testing.T) {
@@ -295,9 +243,7 @@ func TestRestart_WhileRunning(t *testing.T) {
 
 	// Restart without shutting down first should still work.
 	r := controlPost(t, controlURL, "/restart")
-	if !r.OK {
-		t.Fatalf("restart: %s", r.Error)
-	}
+	require.True(t, r.OK, "restart: %s", r.Error)
 
 	// Wait for server to be ready — poll until dial succeeds.
 	waitForDialSuccess(t, wsURL)
@@ -306,13 +252,9 @@ func TestRestart_WhileRunning(t *testing.T) {
 	conn := dialWS(t, wsURL, "id=rr-1")
 
 	frame := map[string]any{"event": "ok"}
-	if err := conn.WriteJSON(frame); err != nil {
-		t.Fatalf("write: %v", err)
-	}
+	require.NoError(t, conn.WriteJSON(frame), "write")
 	var got map[string]any
-	if err := conn.ReadJSON(&got); err != nil {
-		t.Fatalf("read: %v", err)
-	}
+	require.NoError(t, conn.ReadJSON(&got), "read")
 }
 
 func TestRoomRouting(t *testing.T) {
@@ -321,16 +263,10 @@ func TestRoomRouting(t *testing.T) {
 	conn := dialWS(t, wsURL, "room=myroom&id=room-1")
 
 	frame := map[string]any{"event": "room-test"}
-	if err := conn.WriteJSON(frame); err != nil {
-		t.Fatalf("write: %v", err)
-	}
+	require.NoError(t, conn.WriteJSON(frame), "write")
 	var got map[string]any
-	if err := conn.ReadJSON(&got); err != nil {
-		t.Fatalf("read: %v", err)
-	}
-	if got["event"] != "room-test" {
-		t.Errorf("event: want %q, got %q", "room-test", got["event"])
-	}
+	require.NoError(t, conn.ReadJSON(&got), "read")
+	assert.Equal(t, "room-test", got["event"], "event")
 }
 
 func TestKick_AfterShutdown(t *testing.T) {
@@ -339,14 +275,10 @@ func TestKick_AfterShutdown(t *testing.T) {
 	controlPost(t, controlURL, "/shutdown")
 
 	resp, err := http.Post(controlURL+"/kick?id=x", "", nil)
-	if err != nil {
-		t.Fatalf("POST /kick: %v", err)
-	}
+	require.NoError(t, err, "POST /kick")
 	_ = resp.Body.Close()
 
-	if resp.StatusCode != http.StatusServiceUnavailable {
-		t.Errorf("want 503, got %d", resp.StatusCode)
-	}
+	assert.Equal(t, http.StatusServiceUnavailable, resp.StatusCode)
 }
 
 func TestShutdownRestart_KickAfterRestart(t *testing.T) {
@@ -357,33 +289,23 @@ func TestShutdownRestart_KickAfterRestart(t *testing.T) {
 	waitForDialFail(t, wsURL)
 
 	r := controlPost(t, controlURL, "/restart")
-	if !r.OK {
-		t.Fatalf("restart: %s", r.Error)
-	}
+	require.True(t, r.OK, "restart: %s", r.Error)
 	waitForDialSuccess(t, wsURL)
 
 	// Connect and then kick.
 	conn := dialWS(t, wsURL, "id=srk-1")
 
 	frame := map[string]any{"event": "hi"}
-	if err := conn.WriteJSON(frame); err != nil {
-		t.Fatalf("write: %v", err)
-	}
+	require.NoError(t, conn.WriteJSON(frame), "write")
 	var got map[string]any
-	if err := conn.ReadJSON(&got); err != nil {
-		t.Fatalf("read: %v", err)
-	}
+	require.NoError(t, conn.ReadJSON(&got), "read")
 
 	r = controlPost(t, controlURL, "/kick?id=srk-1")
-	if !r.OK {
-		t.Fatalf("kick after restart: %s", r.Error)
-	}
+	require.True(t, r.OK, "kick after restart: %s", r.Error)
 
 	_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 	_, _, err := conn.ReadMessage()
-	if err == nil {
-		t.Fatal("expected read to fail after kick")
-	}
+	require.Error(t, err, "expected read to fail after kick")
 }
 
 func TestFrameRoundTrip(t *testing.T) {
@@ -396,28 +318,16 @@ func TestFrameRoundTrip(t *testing.T) {
 		"event":   "chat.message",
 		"payload": map[string]any{"user": "alice", "text": "hello"},
 	}
-	if err := conn.WriteJSON(outbound); err != nil {
-		t.Fatalf("write: %v", err)
-	}
+	require.NoError(t, conn.WriteJSON(outbound), "write")
 
 	var got map[string]any
-	if err := conn.ReadJSON(&got); err != nil {
-		t.Fatalf("read: %v", err)
-	}
+	require.NoError(t, conn.ReadJSON(&got), "read")
 
-	if got["id"] != "msg-001" {
-		t.Errorf("id: want %q, got %q", "msg-001", got["id"])
-	}
-	if got["event"] != "chat.message" {
-		t.Errorf("event: want %q, got %q", "chat.message", got["event"])
-	}
+	assert.Equal(t, "msg-001", got["id"], "id")
+	assert.Equal(t, "chat.message", got["event"], "event")
 	payload, ok := got["payload"].(map[string]any)
-	if !ok {
-		t.Fatalf("payload: want map, got %T", got["payload"])
-	}
-	if payload["user"] != "alice" {
-		t.Errorf("payload.user: want %q, got %q", "alice", payload["user"])
-	}
+	require.True(t, ok, "payload: want map, got %T", got["payload"])
+	assert.Equal(t, "alice", payload["user"], "payload.user")
 }
 
 func TestMultipleSendsOrdering(t *testing.T) {
@@ -428,22 +338,16 @@ func TestMultipleSendsOrdering(t *testing.T) {
 	const count = 20
 	for i := range count {
 		frame := map[string]any{"event": "seq", "payload": map[string]any{"i": i}}
-		if err := conn.WriteJSON(frame); err != nil {
-			t.Fatalf("write #%d: %v", i, err)
-		}
+		require.NoError(t, conn.WriteJSON(frame), "write #%d", i)
 	}
 
 	for i := range count {
 		_ = conn.SetReadDeadline(time.Now().Add(3 * time.Second))
 		var got map[string]any
-		if err := conn.ReadJSON(&got); err != nil {
-			t.Fatalf("read #%d: %v", i, err)
-		}
+		require.NoError(t, conn.ReadJSON(&got), "read #%d", i)
 		payload := got["payload"].(map[string]any)
 		gotIdx := int(payload["i"].(float64))
-		if gotIdx != i {
-			t.Errorf("order: want %d, got %d", i, gotIdx)
-		}
+		assert.Equal(t, i, gotIdx, "order")
 	}
 }
 
@@ -489,11 +393,9 @@ func TestConcurrentEcho(t *testing.T) {
 	for range clients {
 		select {
 		case err := <-errs:
-			if err != nil {
-				t.Error(err)
-			}
+			assert.NoError(t, err)
 		case <-time.After(3 * time.Second):
-			t.Fatal("timed out waiting for concurrent echo client to finish")
+			require.Fail(t, "timed out waiting for concurrent echo client to finish")
 		}
 	}
 }
@@ -502,11 +404,9 @@ func TestRejectDialError(t *testing.T) {
 	wsURL, _ := testEnv(t)
 
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL+"?reject=1", nil)
-	if err == nil {
-		t.Fatal("expected dial error with reject=1")
-	}
-	if resp != nil && resp.StatusCode == http.StatusSwitchingProtocols {
-		t.Fatal("expected non-101 status on reject")
+	require.Error(t, err, "expected dial error with reject=1")
+	if resp != nil {
+		require.NotEqual(t, http.StatusSwitchingProtocols, resp.StatusCode, "expected non-101 status on reject")
 	}
 
 	// Verify the error message contains something useful.
