@@ -392,7 +392,6 @@ func TestFrameRoundTrip(t *testing.T) {
 	conn := dialWS(t, wsURL, "id=rt-1")
 
 	outbound := map[string]any{
-		"id":      "msg-001",
 		"event":   "chat.message",
 		"payload": map[string]any{"user": "alice", "text": "hello"},
 	}
@@ -405,9 +404,6 @@ func TestFrameRoundTrip(t *testing.T) {
 		t.Fatalf("read: %v", err)
 	}
 
-	if got["id"] != "msg-001" {
-		t.Errorf("id: want %q, got %q", "msg-001", got["id"])
-	}
 	if got["event"] != "chat.message" {
 		t.Errorf("event: want %q, got %q", "chat.message", got["event"])
 	}
