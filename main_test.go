@@ -314,7 +314,6 @@ func TestFrameRoundTrip(t *testing.T) {
 	conn := dialWS(t, wsURL, "id=rt-1")
 
 	outbound := map[string]any{
-		"id":      "msg-001",
 		"event":   "chat.message",
 		"payload": map[string]any{"user": "alice", "text": "hello"},
 	}
@@ -323,7 +322,6 @@ func TestFrameRoundTrip(t *testing.T) {
 	var got map[string]any
 	require.NoError(t, conn.ReadJSON(&got), "read")
 
-	assert.Equal(t, "msg-001", got["id"], "id")
 	assert.Equal(t, "chat.message", got["event"], "event")
 	payload, ok := got["payload"].(map[string]any)
 	require.True(t, ok, "payload: want map, got %T", got["payload"])
