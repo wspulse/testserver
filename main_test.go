@@ -46,7 +46,8 @@ func controlPost(t *testing.T, baseURL, path string) response {
 	require.NoError(t, err, "POST %s", path)
 	defer func() { _ = resp.Body.Close() }()
 
-	body, _ := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err, "read response body")
 	var r response
 	require.NoError(t, json.Unmarshal(body, &r), "decode response (body: %s)", body)
 	return r
