@@ -12,7 +12,7 @@
 
 - [ ] `make check` passes (`fmt` → `lint` → `test`)
 - [ ] Each commit represents exactly one logical change
-- [ ] Commit messages follow the format in `commit-message-instructions.md`
+- [ ] Commit messages follow the format in `.github/instructions/commit-message-instructions.md`
 - [ ] No unrelated code reformatting in this PR
 
 ### Conditional (list only those that apply)
