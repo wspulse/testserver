@@ -41,11 +41,24 @@ make clean            # remove build artifacts and test cache
     - `refactor/<name>` — restructure without behaviour change
     - `bugfix/<name>` — bug fix
     - `fix/<name>` — quick fix (e.g. config, docs, CI)
+  - **Pull request description**: must follow the repo's `.github/PULL_REQUEST_TEMPLATE.md`. Fill in every section (Summary, Changes, Checklist). Do not invent custom formats.
 - **Tests**: co-located with source (`_test.go`). Cover happy path and at least one error path. Required for new control endpoints.
   - **Test-first for bug fixes**: write a failing test before touching production code.
 - **Error format**: wrap errors as `fmt.Errorf("testserver: <context>: %w", err)`.
 - **Dependency policy**: prefer stdlib; justify any new external dependency in the PR description.
 - **File encoding**: all files must be UTF-8 without BOM. Do not use any other encoding.
+
+## Feature Workflow
+
+All new features and design changes follow this process — do not skip steps:
+
+1. **Plan** — write idea to `doc/local/plan/<name>.md` (local only, git-ignored)
+2. **Quick discussion** — feasibility + value check
+3. **Go / No-go** — kill or proceed
+4. **Layer check** — transport layer (wspulse implements) or application layer (write docs recipe instead)
+5. **Issue** — repo-scoped work: open issue on this repo. Cross-repo/global work: open issue on [`wspulse/.github`](https://github.com/wspulse/.github). Include summary, scope, impact assessment, priority label + milestone
+6. **Design discussion** — API surface, cross-SDK parity, contract/protocol updates, edge cases
+7. **Task** — feature branch from `develop`, implement with tests, CHANGELOG entry, PR following template. **Repo-scoped**: link PR to the issue. **Global**: each PR mentions the global issue (e.g., `wspulse/.github#N`); after opening a PR, comment on the global issue with the PR link
 
 ## Critical Rules
 
