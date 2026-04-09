@@ -17,11 +17,11 @@
 
 ### Changed
 
-- Bumped `wspulse/server` dependency from v0.3.0 to v0.6.0
+- Bumped `wspulse/hub` dependency from v0.3.0 to v0.6.0
 
 ### Added
 
-- `wspulse/server` version badge in README
+- `wspulse/hub` version badge in README
 
 ---
 

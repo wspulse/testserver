@@ -14,7 +14,7 @@ git clone https://github.com/wspulse/testserver
 cd testserver
 # Clone core and server alongside testserver (required for local development)
 git clone https://github.com/wspulse/core ../core
-git clone https://github.com/wspulse/server ../server
+git clone https://github.com/wspulse/hub ../server
 go mod tidy
 ```
 

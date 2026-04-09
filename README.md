@@ -1,7 +1,7 @@
 # wspulse/testserver
 
 [![CI](https://github.com/wspulse/testserver/actions/workflows/ci.yml/badge.svg)](https://github.com/wspulse/testserver/actions/workflows/ci.yml)
-[![wspulse/server](https://img.shields.io/badge/wspulse%2Fserver-v0.6.0-blue)](https://github.com/wspulse/server/releases/tag/v0.6.0)
+[![wspulse/hub](https://img.shields.io/badge/wspulse%2Fserver-v0.6.0-blue)](https://github.com/wspulse/hub/releases/tag/v0.6.0)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Shared test server for wspulse non-Go client integration tests. Provides a WebSocket echo server with an HTTP control API for test orchestration.
@@ -12,7 +12,7 @@ Shared test server for wspulse non-Go client integration tests. Provides a WebSo
 
 ## Why
 
-client-go tests reconnect/heartbeat scenarios by embedding `wspulse/server` in-process. Non-Go clients (Kotlin, TypeScript, Swift) run the server as an external process and need a way to trigger server-side actions (kick connections, shut down, restart) from their test harnesses.
+client-go tests reconnect/heartbeat scenarios by embedding `wspulse/hub` in-process. Non-Go clients (Kotlin, TypeScript, Swift) run the server as an external process and need a way to trigger server-side actions (kick connections, shut down, restart) from their test harnesses.
 
 ---
 
