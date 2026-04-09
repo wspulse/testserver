@@ -64,7 +64,7 @@ type testServer struct {
 	logger *zap.Logger
 
 	mu         sync.Mutex
-	server     wspulse.Server
+	server     wspulse.Hub
 	wsListener net.Listener
 	wsPort     int // fixed port for restart
 	wsServing  chan struct{}
@@ -74,8 +74,8 @@ func newTestServer(logger *zap.Logger) *testServer {
 	return &testServer{logger: logger}
 }
 
-func (ts *testServer) newWSServer() wspulse.Server {
-	return wspulse.NewServer(
+func (ts *testServer) newWSServer() wspulse.Hub {
+	return wspulse.NewHub(
 		func(r *http.Request) (roomID, connectionID string, err error) {
 			if r.URL.Query().Get("reject") == "1" {
 				return "", "", fmt.Errorf("rejected by test server")
@@ -255,7 +255,7 @@ func (ts *testServer) handleRestart(w http.ResponseWriter, _ *http.Request) {
 
 // wrapHandler intercepts ?ignore_pings=1 connections before they reach the
 // wspulse server. All other requests are forwarded to srv.
-func (ts *testServer) wrapHandler(srv wspulse.Server) http.Handler {
+func (ts *testServer) wrapHandler(srv wspulse.Hub) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("ignore_pings") == "1" {
 			ts.handleIgnorePings(w, r)
