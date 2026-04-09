@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-wspulse/testserver is a **shared test server** for non-Go wspulse client integration tests. It exposes two local ports: a WebSocket echo server (via `wspulse/server`) and an HTTP control API for test orchestration. Module path: `github.com/wspulse/testserver`. Package name: `main`. Depends on `github.com/wspulse/server`.
+wspulse/testserver is a **shared test server** for non-Go wspulse client integration tests. It exposes two local ports: a WebSocket echo server (via `wspulse/hub`) and an HTTP control API for test orchestration. Module path: `github.com/wspulse/testserver`. Package name: `main`. Depends on `github.com/wspulse/hub`.
 
 ## Architecture
 

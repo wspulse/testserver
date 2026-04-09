@@ -6,10 +6,10 @@ Shared integration test server for non-Go wspulse client integration tests. Read
 
 `testserver` is a standalone Go `main` binary (`github.com/wspulse/testserver`) that exposes two local TCP ports:
 
-- **WebSocket port** — echo server backed by `wspulse/server`. Behaviour is controlled by URL query parameters.
+- **WebSocket port** — echo server backed by `wspulse/hub`. Behaviour is controlled by URL query parameters.
 - **Control port** — HTTP API for test orchestration (`/health`, `/kick`, `/shutdown`, `/restart`).
 
-On startup it prints `READY:<ws_port>:<control_port>` to stderr; client test harnesses parse this line to discover both ports. Depends on `github.com/wspulse/server`.
+On startup it prints `READY:<ws_port>:<control_port>` to stderr; client test harnesses parse this line to discover both ports. Depends on `github.com/wspulse/hub`.
 
 ## File Index
 
@@ -26,7 +26,7 @@ On startup it prints `READY:<ws_port>:<control_port>` to stderr; client test har
 | `?reject=1`    | `ConnectFunc` returns an error → HTTP 401                           |
 | `?room=<id>`   | Assigns connection to room `<id>` (default: `"test"`)               |
 | `?id=<id>`     | Sets `connectionID` (default: auto-generated UUID)                  |
-| `?ignore_pings=1` | Bypasses wspulse/server; raw echo that suppresses Pong replies   |
+| `?ignore_pings=1` | Bypasses wspulse/hub; raw echo that suppresses Pong replies   |
 
 ## Development Workflow
 
